@@ -442,13 +442,37 @@ public:
 int main() {
     std::cout << "Heterogeneous Matrix Multiplication on Apple Silicon" << std::endl;
     
+    // Functions for dynamic workload distribution
+    auto getCpuPercentage = [](uint32_t matrixSize) -> float {
+        // CPU percentage should decrease as matrix size increases
+        return (0.002f / (matrixSize / 1024.0f));
+    };
+    
+    auto getGpuPercentage = [](uint32_t matrixSize) -> float {
+        // GPU percentage should increase with matrix size
+        return std::min(0.998f, 0.8f + 0.1f * (matrixSize / 512.0f));
+    };
+    
     // Try different matrix sizes for more comprehensive comparison
     std::vector<uint32_t> sizes = {512, 1024, 2048, 4096};
     
     for (auto matrixSize : sizes) {
         std::cout << "\n---- Matrix size: " << matrixSize << "x" << matrixSize << " ----\n";
         
-        HeterogeneousMatrixMultiplier multiplier(matrixSize, 0.001f, 0.998f, 0.001f);
+        // Calculate initial percentages
+        float cpuPercentage = getCpuPercentage(matrixSize);
+        float gpuPercentage = 1-cpuPercentage;
+        
+        // Normalize to ensure they sum to 1.0
+        // float sum = rawCpuPercentage + rawGpuPercentage;
+        // float cpuPercentage = rawCpuPercentage / sum;
+        // float gpuPercentage = rawGpuPercentage / sum;
+        float npuPercentage = 0.0f;  // Set NPU percentage to 0 as specified
+        //print the full percentages
+        std::cout << "CPU percentage: " << cpuPercentage * 100 << "%\n";
+        std::cout << "GPU percentage: " << gpuPercentage * 100 << "%\n";
+        std::cout << "NPU percentage: " << npuPercentage * 100 << "%\n";
+        HeterogeneousMatrixMultiplier multiplier(matrixSize, cpuPercentage, gpuPercentage, npuPercentage);
         if (!multiplier.initialize()) {
             std::cerr << "Failed to initialize matrix multiplier." << std::endl;
             continue;
