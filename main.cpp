@@ -128,6 +128,9 @@ private:
     float m_cpuWorkPercentage;
     float m_gpuWorkPercentage;
     float m_npuWorkPercentage;
+    std::chrono::duration<double> m_cpuExecutionTime{0};
+    std::chrono::duration<double> m_gpuExecutionTime{0};
+    std::chrono::duration<double> m_npuExecutionTime{0};
     
     bool setupMetal() {
         m_device = MTL::CreateSystemDefaultDevice();
@@ -216,10 +219,85 @@ private:
         return true;
     }
     
-    // CPU computation with Accelerate framework
+    // // CPU computation with Accelerate framework
+    // void computeOnCPU(size_t startRow, size_t endRow) {
+    //     std::cout << "CPU processing rows " << startRow << " to " << endRow << std::endl;
+        
+    //     for (size_t i = startRow; i < endRow; i++) {
+    //         // Process one row at a time using BLAS
+    //         for (size_t j = 0; j < m_matrixSize; j++) {
+    //             float dotProduct = 0.0f;
+    //             vDSP_dotpr(&m_matrixA[i * m_matrixSize], 1, 
+    //                        &m_matrixB[j], m_matrixSize, 
+    //                        &dotProduct, m_matrixSize);
+    //             m_result[i * m_matrixSize + j] = dotProduct;
+    //         }
+    //     }
+    // }
+    
+    // // GPU computation with Metal
+    // void computeOnGPU(size_t startRow, size_t endRow) {
+    //     std::cout << "GPU processing rows " << startRow << " to " << endRow << std::endl;
+        
+    //     size_t rowCount = endRow - startRow;
+        
+    //     // Create command buffer
+    //     MTL::CommandBuffer* commandBuffer = m_commandQueue->commandBuffer();
+    //     MTL::ComputeCommandEncoder* computeEncoder = commandBuffer->computeCommandEncoder();
+        
+    //     // Set up pipeline (use tiled for better performance)
+    //     computeEncoder->setComputePipelineState(m_tiledPipelineState);
+        
+    //     // Set buffers
+    //     computeEncoder->setBuffer(m_bufferA, startRow * m_matrixSize * sizeof(float), 0);
+    //     computeEncoder->setBuffer(m_bufferB, 0, 1);
+    //     computeEncoder->setBuffer(m_gpuResultBuffer, 0, 2);
+        
+    //     // Set matrix size
+    //     uint32_t width = m_matrixSize;
+    //     computeEncoder->setBytes(&width, sizeof(width), 3);
+        
+    //     // Calculate grid and threadgroup sizes
+    //     MTL::Size gridSize = MTL::Size(m_matrixSize, rowCount, 1);
+        
+    //     // For tiled algorithm, threadgroup size must match TILE_SIZE
+    //     MTL::Size threadgroupSize = MTL::Size(16, 16, 1);
+        
+    //     // Dispatch threads
+    //     computeEncoder->dispatchThreads(gridSize, threadgroupSize);
+        
+    //     computeEncoder->endEncoding();
+    //     commandBuffer->commit();
+    //     commandBuffer->waitUntilCompleted();
+        
+    //     // Copy result back to main array
+    //     float* gpuResult = static_cast<float*>(m_gpuResultBuffer->contents());
+    //     std::copy(gpuResult, gpuResult + rowCount * m_matrixSize, &m_result[startRow * m_matrixSize]);
+    // }
+    
+    // // Simulated NPU computation
+    // void simulateNPU(size_t startRow, size_t endRow) {
+    //     std::cout << "NPU processing rows " << startRow << " to " << endRow << std::endl;
+        
+    //     // In a real implementation, this would use Core ML for the Neural Engine
+    //     // For now, use optimized CPU computation to simulate NPU
+        
+    //     for (size_t i = startRow; i < endRow; i++) {
+    //         for (size_t j = 0; j < m_matrixSize; j++) {
+    //             float sum = 0.0f;
+    //             for (size_t k = 0; k < m_matrixSize; k++) {
+    //                 sum += m_matrixA[i * m_matrixSize + k] * m_matrixB[k * m_matrixSize + j];
+    //             }
+    //             m_result[i * m_matrixSize + j] = sum;
+    //         }
+    //     }
+    // }
     void computeOnCPU(size_t startRow, size_t endRow) {
         std::cout << "CPU processing rows " << startRow << " to " << endRow << std::endl;
         
+        auto startTime = std::chrono::high_resolution_clock::now();
+        
+        // Your existing CPU computation code
         for (size_t i = startRow; i < endRow; i++) {
             // Process one row at a time using BLAS
             for (size_t j = 0; j < m_matrixSize; j++) {
@@ -230,12 +308,18 @@ private:
                 m_result[i * m_matrixSize + j] = dotProduct;
             }
         }
+        
+        auto endTime = std::chrono::high_resolution_clock::now();
+        m_cpuExecutionTime = endTime - startTime;
     }
     
-    // GPU computation with Metal
+    // Modify computeOnGPU to include timing
     void computeOnGPU(size_t startRow, size_t endRow) {
         std::cout << "GPU processing rows " << startRow << " to " << endRow << std::endl;
         
+        auto startTime = std::chrono::high_resolution_clock::now();
+        
+        // Your existing GPU computation code
         size_t rowCount = endRow - startRow;
         
         // Create command buffer
@@ -256,8 +340,6 @@ private:
         
         // Calculate grid and threadgroup sizes
         MTL::Size gridSize = MTL::Size(m_matrixSize, rowCount, 1);
-        
-        // For tiled algorithm, threadgroup size must match TILE_SIZE
         MTL::Size threadgroupSize = MTL::Size(16, 16, 1);
         
         // Dispatch threads
@@ -265,29 +347,27 @@ private:
         
         computeEncoder->endEncoding();
         commandBuffer->commit();
-        commandBuffer->waitUntilCompleted();
+        commandBuffer->waitUntilCompleted(); // Synchronize with GPU
+        
+        auto endTime = std::chrono::high_resolution_clock::now();
+        m_gpuExecutionTime = endTime - startTime;
         
         // Copy result back to main array
         float* gpuResult = static_cast<float*>(m_gpuResultBuffer->contents());
         std::copy(gpuResult, gpuResult + rowCount * m_matrixSize, &m_result[startRow * m_matrixSize]);
     }
     
-    // Simulated NPU computation
+    // Modify simulateNPU similarly
     void simulateNPU(size_t startRow, size_t endRow) {
         std::cout << "NPU processing rows " << startRow << " to " << endRow << std::endl;
         
-        // In a real implementation, this would use Core ML for the Neural Engine
-        // For now, use optimized CPU computation to simulate NPU
+        auto startTime = std::chrono::high_resolution_clock::now();
         
-        for (size_t i = startRow; i < endRow; i++) {
-            for (size_t j = 0; j < m_matrixSize; j++) {
-                float sum = 0.0f;
-                for (size_t k = 0; k < m_matrixSize; k++) {
-                    sum += m_matrixA[i * m_matrixSize + k] * m_matrixB[k * m_matrixSize + j];
-                }
-                m_result[i * m_matrixSize + j] = sum;
-            }
-        }
+        // Your existing NPU simulation code
+        // ...
+        
+        auto endTime = std::chrono::high_resolution_clock::now();
+        m_npuExecutionTime = endTime - startTime;
     }
     
 public:
@@ -348,6 +428,30 @@ public:
         }
         
         return true;
+    }
+
+    void reportProcessorTimings() {
+        std::cout << "\n---- Processor Timing Analysis ----\n";
+        std::cout << "CPU execution time: " << m_cpuExecutionTime.count() << " seconds\n";
+        std::cout << "GPU execution time: " << m_gpuExecutionTime.count() << " seconds\n";
+        std::cout << "NPU execution time: " << m_npuExecutionTime.count() << " seconds\n";
+        
+        // Determine which processor waited for others
+        std::chrono::duration<double> maxTime = std::max({m_cpuExecutionTime, m_gpuExecutionTime, m_npuExecutionTime});
+        
+        if (maxTime == m_cpuExecutionTime) {
+            std::cout << "BOTTLENECK: CPU is the limiting factor\n";
+            std::cout << "  - GPU waited for: " << (m_cpuExecutionTime - m_gpuExecutionTime).count() << " seconds\n";
+            // std::cout << "  - NPU waited for: " << (m_cpuExecutionTime - m_npuExecutionTime).count() << " seconds\n";
+        } else if (maxTime == m_gpuExecutionTime) {
+            std::cout << "BOTTLENECK: GPU is the limiting factor\n";
+            std::cout << "  - CPU waited for: " << (m_gpuExecutionTime - m_cpuExecutionTime).count() << " seconds\n";
+            // std::cout << "  - NPU waited for: " << (m_gpuExecutionTime - m_npuExecutionTime).count() << " seconds\n";
+        } else {
+            std::cout << "BOTTLENECK: NPU is the limiting factor\n";
+            std::cout << "  - CPU waited for: " << (m_npuExecutionTime - m_cpuExecutionTime).count() << " seconds\n";
+            std::cout << "  - GPU waited for: " << (m_npuExecutionTime - m_gpuExecutionTime).count() << " seconds\n";
+        }
     }
     
     void multiply() {
@@ -411,30 +515,72 @@ public:
 // int main() {
 //     std::cout << "Heterogeneous Matrix Multiplication on Apple Silicon" << std::endl;
     
-//     // Create a 1024x1024 matrix multiplier with work distribution:
-//     // 20% on CPU, 60% on GPU, 20% on NPU (simulated)
-//     uint32_t matrixSize = 1024;
-//     HeterogeneousMatrixMultiplier multiplier(matrixSize, 0.2f, 0.6f, 0.2f);
+//     // Functions for dynamic workload distribution
+//     auto getCpuPercentage = [](uint32_t matrixSize) -> float {
+//         // CPU percentage should decrease as matrix size increases
+//         return (0.005f / (matrixSize / 1024.0f));
+//     };
     
-//     // Initialize
-//     if (!multiplier.initialize()) {
-//         std::cerr << "Failed to initialize matrix multiplier." << std::endl;
-//         return -1;
+//     auto getGpuPercentage = [](uint32_t matrixSize) -> float {
+//         // GPU percentage should increase with matrix size
+//         return std::min(0.998f, 0.8f + 0.1f * (matrixSize / 512.0f));
+//     };
+    
+//     // Try different matrix sizes for more comprehensive comparison
+//     std::vector<uint32_t> sizes = {512, 1024, 2048, 4096};
+    
+//     for (auto matrixSize : sizes) {
+//         std::cout << "\n---- Matrix size: " << matrixSize << "x" << matrixSize << " ----\n";
+        
+//         // Calculate initial percentages
+//         float cpuPercentage = getCpuPercentage(matrixSize);
+//         float gpuPercentage = 1-cpuPercentage;
+        
+//         // Normalize to ensure they sum to 1.0
+//         // float sum = rawCpuPercentage + rawGpuPercentage;
+//         // float cpuPercentage = rawCpuPercentage / sum;
+//         // float gpuPercentage = rawGpuPercentage / sum;
+//         float npuPercentage = 0.0f;  // Set NPU percentage to 0 as specified
+//         //print the full percentages
+//         std::cout << "CPU percentage: " << cpuPercentage * 100 << "%\n";
+//         std::cout << "GPU percentage: " << gpuPercentage * 100 << "%\n";
+//         std::cout << "NPU percentage: " << npuPercentage * 100 << "%\n";
+//         HeterogeneousMatrixMultiplier multiplier(matrixSize, cpuPercentage, gpuPercentage, npuPercentage);
+//         if (!multiplier.initialize()) {
+//             std::cerr << "Failed to initialize matrix multiplier." << std::endl;
+//             continue;
+//         }
+        
+//         // CPU only
+//         auto cpuStart = std::chrono::high_resolution_clock::now();
+//         multiplier.multiplyOnCPUOnly();
+//         auto cpuEnd = std::chrono::high_resolution_clock::now();
+//         std::chrono::duration<double> cpuDuration = cpuEnd - cpuStart;
+        
+//         // GPU only
+//         auto gpuStart = std::chrono::high_resolution_clock::now();
+//         multiplier.multiplyOnGPUOnly();
+//         auto gpuEnd = std::chrono::high_resolution_clock::now();
+//         std::chrono::duration<double> gpuDuration = gpuEnd - gpuStart;
+        
+//         // Heterogeneous
+//         auto hetStart = std::chrono::high_resolution_clock::now();
+//         multiplier.multiply();
+//         auto hetEnd = std::chrono::high_resolution_clock::now();
+//         std::chrono::duration<double> hetDuration = hetEnd - hetStart;
+        
+//         // Print results
+//         std::cout << "CPU-only time: " << cpuDuration.count() << " seconds\n";
+//         std::cout << "GPU-only time: " << gpuDuration.count() << " seconds\n";
+//         std::cout << "Heterogeneous time: " << hetDuration.count() << " seconds\n";
+        
+//         // Calculate speedups
+//         float cpuSpeedup = cpuDuration.count() / hetDuration.count();
+//         float gpuSpeedup = gpuDuration.count() / hetDuration.count();
+        
+//         std::cout << "Speedup vs CPU-only: " << cpuSpeedup << "x\n";
+//         std::cout << "Speedup vs GPU-only: " << gpuSpeedup << "x\n";
 //     }
-    
-//     // Measure performance
-//     auto start = std::chrono::high_resolution_clock::now();
-    
-//     // Execute heterogeneous multiplication
-//     multiplier.multiply();
-    
-//     auto end = std::chrono::high_resolution_clock::now();
-//     std::chrono::duration<double> duration = end - start;
-    
-//     std::cout << "Heterogeneous multiplication completed in " << duration.count() << " seconds." << std::endl;
-    
-//     // Print a small section of the matrices
-//     multiplier.printMatrices(3);
     
 //     return 0;
 // }
@@ -442,36 +588,26 @@ public:
 int main() {
     std::cout << "Heterogeneous Matrix Multiplication on Apple Silicon" << std::endl;
     
-    // Functions for dynamic workload distribution
-    auto getCpuPercentage = [](uint32_t matrixSize) -> float {
-        // CPU percentage should decrease as matrix size increases
-        return (0.002f / (matrixSize / 1024.0f));
-    };
-    
-    auto getGpuPercentage = [](uint32_t matrixSize) -> float {
-        // GPU percentage should increase with matrix size
-        return std::min(0.998f, 0.8f + 0.1f * (matrixSize / 512.0f));
-    };
-    
     // Try different matrix sizes for more comprehensive comparison
     std::vector<uint32_t> sizes = {512, 1024, 2048, 4096};
     
     for (auto matrixSize : sizes) {
         std::cout << "\n---- Matrix size: " << matrixSize << "x" << matrixSize << " ----\n";
         
+        // Functions for dynamic workload distribution
+        auto getCpuPercentage = [](uint32_t matrixSize) -> float {
+            return (0.005f / (matrixSize / 1024.0f));
+        };
+        
         // Calculate initial percentages
         float cpuPercentage = getCpuPercentage(matrixSize);
         float gpuPercentage = 1-cpuPercentage;
+        float npuPercentage = 0.0f;
         
-        // Normalize to ensure they sum to 1.0
-        // float sum = rawCpuPercentage + rawGpuPercentage;
-        // float cpuPercentage = rawCpuPercentage / sum;
-        // float gpuPercentage = rawGpuPercentage / sum;
-        float npuPercentage = 0.0f;  // Set NPU percentage to 0 as specified
-        //print the full percentages
         std::cout << "CPU percentage: " << cpuPercentage * 100 << "%\n";
         std::cout << "GPU percentage: " << gpuPercentage * 100 << "%\n";
         std::cout << "NPU percentage: " << npuPercentage * 100 << "%\n";
+        
         HeterogeneousMatrixMultiplier multiplier(matrixSize, cpuPercentage, gpuPercentage, npuPercentage);
         if (!multiplier.initialize()) {
             std::cerr << "Failed to initialize matrix multiplier." << std::endl;
@@ -507,6 +643,9 @@ int main() {
         
         std::cout << "Speedup vs CPU-only: " << cpuSpeedup << "x\n";
         std::cout << "Speedup vs GPU-only: " << gpuSpeedup << "x\n";
+        
+        // Report detailed processor timings
+        multiplier.reportProcessorTimings();
     }
     
     return 0;
