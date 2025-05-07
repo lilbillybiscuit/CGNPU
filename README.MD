@@ -1,4 +1,5 @@
 # CGNPU
+*Final project for Yale CPSC 524.*
 
 ## `compiler`
 Implements proof-of-concept compiler for C++ to our own bytecode format that emphasizes matrix multiplication primitives. The IR generation and ANE implementation are stubbed/hardcoded.
