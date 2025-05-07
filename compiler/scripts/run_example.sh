@@ -10,7 +10,7 @@ scripts/build.sh
 INPUT_NAME="${1:-example_matrix_input}"
 INPUT_FILE="programs/test_inputs/${INPUT_NAME}.txt"
 
-EXPECTED_OUTPUT_FILE="programs/test_outputs/${INPUT_NAME}_output.txt"
+EXPECTED_OUTPUT_FILE="programs/test_outputs/${INPUT_NAME%_input}_output.txt"
 
 if [ ! -f "${INPUT_FILE}" ]; then
     echo "Input file ${INPUT_FILE} not found!"

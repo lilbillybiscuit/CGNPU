@@ -2,6 +2,7 @@
 #include <chrono>
 #include <algorithm>
 #include <iostream>
+#include <thread>
 
 WorkStealingScheduler::WorkStealingScheduler() 
     : totalWork(0), shutdownRequested(false), monitorActive(false),
