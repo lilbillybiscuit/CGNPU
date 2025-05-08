@@ -494,7 +494,7 @@ void WorkStealingScheduler::monitor() {
         if (stealingCooldown > 0) {
             stealingCooldown--;
         }
-        for (int i = 0; i < 3; i++) {
+        for (int i = 0; i < 30; i++) {
             if (shutdownRequested) break;
             DeviceType idleDevice = static_cast<DeviceType>(i);
             if (idleDevice == DeviceType::ANE) {
@@ -516,7 +516,7 @@ void WorkStealingScheduler::monitor() {
                         stolenWork.push_back(*stolen);
                         addWork(stolenWork, idleDevice);
                         delete stolen;
-                        stealingCooldown = 5;
+                        stealingCooldown = 0;
                     }
                 }
             }
@@ -524,7 +524,7 @@ void WorkStealingScheduler::monitor() {
         if (stealingCooldown > 0) {
             continue;
         }
-        for (int i = 0; i < 3; i++) {
+        for (int i = 0; i < 30; i++) {
             if (shutdownRequested) break;
             DeviceType device = static_cast<DeviceType>(i);
             if (device == DeviceType::ANE) {
